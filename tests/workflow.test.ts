@@ -8,6 +8,7 @@ import { createDb, type Db } from "../server/db";
 import { createApp } from "../server/app";
 import { config } from "../server/config";
 import { processNextJob } from "../server/worker-core";
+import { getChatGPTStatus, startChatGPTAuthorization } from "../server/chatgpt-auth";
 
 let db: Db; let server: Server; let base: string; let temp: string;
 
@@ -15,6 +16,7 @@ beforeEach(async () => {
   temp = path.join(process.cwd(), ".test-tmp", randomUUID());
   fs.mkdirSync(temp, { recursive: true });
   config.dataDir = temp;
+  config.providerMode = "mock";
   db = createDb(path.join(temp, "test.sqlite"));
   server = createApp(db).listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));
@@ -36,6 +38,16 @@ async function seed(twoChapters = false) {
 }
 
 describe("persisted mock workflow", () => {
+  it("creates a PKCE ChatGPT-plan authorization without exposing credentials", () => {
+    const authorization = new URL(startChatGPTAuthorization(db));
+    expect(authorization.origin).toBe("https://auth.openai.com");
+    expect(authorization.searchParams.get("client_id")).toBe("dynamic_agent_client");
+    expect(authorization.searchParams.get("scope")).toContain("chatgpt.tokens.use.direct");
+    expect(authorization.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(authorization.searchParams.get("ext_agent_host_id")).toMatch(/^urn:uuid:/);
+    expect((db.prepare("SELECT COUNT(*) n FROM chatgpt_oauth_attempts").get() as any).n).toBe(1);
+    expect(getChatGPTStatus(db).connected).toBe(false);
+  });
   it("deduplicates concurrent generation clicks at the database boundary", async () => {
     const { chapterIds } = await seed();
     const payload = { chapterId: chapterIds[0], mode: "faithful", pageMin: 2, pageMax: 4, sampleOnly: true, paidCallsAuthorized: false };

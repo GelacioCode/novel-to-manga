@@ -65,6 +65,19 @@ export function createDb(filename = path.join(config.dataDir, "novel-to-manga.sq
       page_number INTEGER NOT NULL DEFAULT 1, scroll_offset REAL NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL, PRIMARY KEY(series_id, chapter_id)
     );
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS chatgpt_oauth_attempts (
+      state TEXT PRIMARY KEY, code_verifier TEXT NOT NULL, nonce TEXT NOT NULL,
+      redirect_uri TEXT NOT NULL, requested_client_id TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS chatgpt_credentials (
+      id TEXT PRIMARY KEY, client_id TEXT NOT NULL UNIQUE, email TEXT, subject TEXT NOT NULL,
+      id_token TEXT NOT NULL, access_token TEXT NOT NULL, refresh_token TEXT NOT NULL,
+      token_type TEXT NOT NULL, scopes TEXT NOT NULL, expires_at TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1, refresh_lock_until TEXT, updated_at TEXT NOT NULL
+    );
   `);
   const chapterColumns = db.prepare("PRAGMA table_info(chapters)").all() as Array<{ name: string }>;
   if (!chapterColumns.some(c => c.name === "source_metadata_json")) db.exec("ALTER TABLE chapters ADD COLUMN source_metadata_json TEXT NOT NULL DEFAULT '{}'");

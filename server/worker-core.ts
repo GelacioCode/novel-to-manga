@@ -31,7 +31,7 @@ async function processJob(db: Db, job: any) {
   const previousContinuity = db.prepare(`SELECT c.snapshot_json FROM continuity c JOIN chapters ch ON ch.id=c.chapter_id WHERE c.series_id=? AND ch.sort_order < ? AND c.invalidated=0 ORDER BY ch.sort_order DESC, c.version DESC LIMIT 1`).get(job.series_id, chapter.sort_order) as any;
   const refs = db.prepare("SELECT file_path FROM reference_images WHERE series_id=?").all(job.series_id) as any[];
   const totalPages = job.sample_only ? 1 : job.total_pages;
-  const ctx: ProviderContext = { sourceText: chapter.source_text, mode: job.mode, totalPages, visualGuide: guide.content, continuity: previousContinuity ? JSON.parse(previousContinuity.snapshot_json) : {}, referencePaths: refs.map(r => r.file_path), paidCallsAuthorized: Boolean(job.paid_calls_authorized) };
+  const ctx: ProviderContext = { sourceText: chapter.source_text, mode: job.mode, totalPages, visualGuide: guide.content, continuity: previousContinuity ? JSON.parse(previousContinuity.snapshot_json) : {}, referencePaths: refs.map(r => r.file_path), paidCallsAuthorized: Boolean(job.paid_calls_authorized), db };
 
   await checkpoint(db, job.id, "validate", { sourceChapterId: chapter.id, guideVersion: guide.version, priorContinuityOnly: true });
   if (cancelled(db, job.id)) return markCancelled(db, job.id);

@@ -14,6 +14,7 @@
 - [x] Schema-validated stage data with passage IDs attached to events and panels.
 - [x] Mock provider requiring no secrets and generating unmistakably labeled SVG placeholders.
 - [x] Optional, fail-closed OpenAI text, vision, and image provider interfaces based on current official documentation.
+- [x] Hybrid “Continue with ChatGPT” OAuth/PKCE flow for eligible plan-funded text adaptation and reference analysis, with renewable server-side credentials and API-key-only artwork.
 - [x] Saved reader pages, scroll/single-page modes, RTL/LTR, zoom, keyboard navigation, chapter picker, Next chapter behavior, and editable lettering.
 - [x] Localhost binding, server-only secrets, upload controls, filename sanitizing, path-safe storage, and private-network URL blocking.
 

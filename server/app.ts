@@ -10,6 +10,7 @@ import { fileTypeFromFile } from "file-type";
 import type { Db } from "./db";
 import { config } from "./config";
 import { analyzeReferenceImages } from "./providers";
+import { disconnectChatGPT, finishChatGPTAuthorization, getChatGPTStatus, listChatGPTModels, startChatGPTAuthorization } from "./chatgpt-auth";
 import { bulkImportSchema, jobOptionsSchema } from "./schemas";
 
 const now = () => new Date().toISOString();
@@ -26,7 +27,17 @@ export function createApp(db: Db) {
   app.use("/files/references", express.static(path.join(config.dataDir, "references"), { fallthrough: false, index: false }));
 
   app.get("/api/health", (_req, res) => res.json({ ok: true, providerMode: config.providerMode, paidCallsEnabled: config.allowPaidCalls, database: "sqlite", workerRequired: true }));
-  app.get("/api/settings", (_req, res) => res.json({ providerMode: config.providerMode, paidCallsEnabled: config.allowPaidCalls, maxPages: config.maxPages, maxJobSpendUsd: config.maxJobSpendUsd, apiKeyConfigured: Boolean(process.env.OPENAI_API_KEY), dataDir: config.dataDir, privacy: "Selected chapter text and reference images are sent to the configured external provider only in real provider mode. Mock mode stays local." }));
+  app.get("/api/settings", (_req, res) => res.json({ providerMode: config.providerMode, paidCallsEnabled: config.allowPaidCalls, maxPages: config.maxPages, maxJobSpendUsd: config.maxJobSpendUsd, apiKeyConfigured: Boolean(process.env.OPENAI_API_KEY), textModel: config.openAITextModel, imageModel: config.openAIImageModel, chatgpt: getChatGPTStatus(db), dataDir: config.dataDir, privacy: "Hybrid mode sends chapter text and selected reference images through your authorized ChatGPT plan. Image generation is unsupported by plan usage and requires a separately authorized API-key call. Mock mode stays local." }));
+  app.get("/api/auth/chatgpt/start", (_req, res) => res.redirect(302, startChatGPTAuthorization(db)));
+  app.get("/api/auth/chatgpt/callback", async (req, res) => {
+    try {
+      const result = await finishChatGPTAuthorization(db, req.query);
+      res.type("html").send(callbackPage(result.planUsageEnabled ? "ChatGPT connected. You may close this window." : "Signed in, but ChatGPT plan usage was not granted.", true));
+    } catch (error) { res.status(400).type("html").send(callbackPage(error instanceof Error ? error.message : String(error), false)); }
+  });
+  app.get("/api/auth/chatgpt/status", (_req, res) => res.json(getChatGPTStatus(db)));
+  app.get("/api/auth/chatgpt/models", async (_req, res) => { try { res.json({ models: await listChatGPTModels(db) }); } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : String(error) }); } });
+  app.post("/api/auth/chatgpt/disconnect", async (_req, res) => { try { res.json(await disconnectChatGPT(db)); } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : String(error) }); } });
 
   app.get("/api/series", (_req, res) => {
     const rows = db.prepare(`SELECT s.*, COUNT(DISTINCT c.id) chapter_count, COUNT(DISTINCT CASE WHEN c.status='completed' THEN c.id END) completed_count, MAX(CASE WHEN g.approved=1 THEN 1 ELSE 0 END) guide_approved FROM series s LEFT JOIN chapters c ON c.series_id=s.id LEFT JOIN visual_guides g ON g.series_id=s.id GROUP BY s.id ORDER BY s.created_at DESC`).all() as any[];
@@ -124,7 +135,7 @@ export function createApp(db: Db) {
     const refs = db.prepare("SELECT file_path FROM reference_images WHERE series_id=?").all(req.params.id) as any[];
     if (!refs.length) return res.status(400).json({ error: "Upload at least one reference image first." });
     try {
-      const content = await analyzeReferenceImages(refs.map(r => r.file_path), Boolean(req.body.paidCallsAuthorized));
+      const content = await analyzeReferenceImages(db, refs.map(r => r.file_path), Boolean(req.body.paidCallsAuthorized));
       const version = ((db.prepare("SELECT MAX(version) n FROM visual_guides WHERE series_id=?").get(req.params.id) as any)?.n ?? 0) + 1;
       const id = randomUUID(); db.prepare("INSERT INTO visual_guides VALUES(?,?,?,?,?,?)").run(id, req.params.id, content, 0, version, now());
       res.status(201).json({ id, content, approved: false, version });
@@ -240,4 +251,8 @@ async function assertPublicUrl(url: URL) {
 function isPrivate(ip: string) {
   if (net.isIPv4(ip)) { const [a, b] = ip.split(".").map(Number); return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168); }
   const normalized = ip.toLowerCase(); return normalized === "::1" || normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe80:") || normalized === "::";
+}
+function callbackPage(message: string, success: boolean) {
+  const safe = message.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+  return `<!doctype html><meta charset="utf-8"><title>Novel to Manga</title><style>body{font:16px system-ui;background:#f2efe7;color:#171816;display:grid;place-items:center;min-height:100vh;margin:0}.box{background:#fff;padding:32px;border:1px solid #ccc;max-width:520px}button{padding:10px 16px}</style><div class="box"><h1>${success ? "Connected" : "Sign-in error"}</h1><p>${safe}</p><button onclick="window.close()">Close</button></div><script>if(window.opener){window.opener.postMessage({type:'novel-to-manga-chatgpt-auth',success:${success}},'http://127.0.0.1:${process.env.WEB_PORT ?? 5173}')}</script>`;
 }

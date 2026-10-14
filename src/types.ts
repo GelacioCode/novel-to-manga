@@ -16,7 +16,7 @@ export interface Guide { id: string; seriesId: string; content: string; approved
 export interface Job {
   id: string; seriesId: string; chapterId: string; status: JobStatus; stage: string;
   completedPages: number; totalPages: number; mode: "faithful" | "condensed";
-  pageMin: number; pageMax: number; sampleOnly: boolean; providerMode: "mock" | "openai";
+  pageMin: number; pageMax: number; sampleOnly: boolean; providerMode: "mock" | "openai" | "hybrid";
   error?: string; createdAt: string; updatedAt: string;
 }
 export interface Page {

@@ -21,6 +21,7 @@
     "dotenv": "latest",
     "express": "latest",
     "file-type": "latest",
+    "jose": "^6.2.12",
     "multer": "latest",
     "openai": "latest",
     "react": "latest",

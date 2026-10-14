@@ -53,13 +53,15 @@ To configure it, edit `.env`:
 ```dotenv
 PROVIDER_MODE=openai
 OPENAI_API_KEY=your_server_side_key
-OPENAI_TEXT_MODEL=gpt-6-astra
+OPENAI_TEXT_MODEL=gpt-5.6
 OPENAI_IMAGE_MODEL=gpt-image-2.5-flare
 ALLOW_PAID_PROVIDER_CALLS=true
 MAX_JOB_SPEND_USD=5
 ```
 
-Real calls still require an explicit `paidCallsAuthorized` flag on each job. The shipped UI deliberately sends `false`, so turning on the environment values alone cannot spend money. Add a consent control only after reviewing expected cost. Keys stay server-side and are never returned by the settings endpoint. API usage is billed separately from ChatGPT subscriptions.
+For hybrid mode, set `PROVIDER_MODE=hybrid`, restart the app, then open Settings and choose **Continue with ChatGPT**. Adaptation and reference analysis use eligible ChatGPT plan usage; artwork still uses the API key because image generation is unsupported in the ChatGPT-plan OAuth preview. The app stores OAuth credentials only in the ignored local SQLite data directory and never sends them to the browser.
+
+Real image calls still require explicit authorization on each job. The Generate screen includes an **Authorize paid artwork for this job** checkbox, which is off by default; environment values alone therefore cannot spend money. Keys stay server-side and are never returned by the settings endpoint. API usage is billed separately from ChatGPT subscriptions.
 
 ## Current limitations
 
