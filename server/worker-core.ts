@@ -47,6 +47,7 @@ async function processJob(db: Db, job: any) {
   await checkpoint(db, job.id, "plan_pages", { pages: adaptation.pages, sourcePassageIds: adaptation.passages.map(p => p.id) });
 
   const revision = chooseRevision(db, chapter.id, Boolean(job.sample_only));
+  const useMockArtwork = job.image_provider_mode === "mock" || (!job.image_provider_mode && job.provider_mode === "mock");
   fs.mkdirSync(path.join(config.dataDir, "generated", chapter.id, String(revision)), { recursive: true });
   for (let i = 0; i < totalPages; i++) {
     if (cancelled(db, job.id)) return markCancelled(db, job.id);
@@ -55,9 +56,9 @@ async function processJob(db: Db, job: any) {
     if (existing) { updateProgress(db, job.id, pageNumber, totalPages); continue; }
     const pagePlan = adaptation.pages[i] ?? adaptation.pages.at(-1)!;
     const panel = pagePlan.panels[0];
-    const ext = job.provider_mode === "mock" ? "svg" : "png";
+    const ext = useMockArtwork ? "svg" : "png";
     const output = path.join(config.dataDir, "generated", chapter.id, String(revision), `page-${pageNumber}.${ext}`);
-    if (job.provider_mode === "mock") fs.writeFileSync(output, mockSvg(chapter.title, pageNumber, panel.description));
+    if (useMockArtwork) fs.writeFileSync(output, mockSvg(chapter.title, pageNumber, panel.description));
     else {
       db.prepare("UPDATE jobs SET stage='provider_request', updated_at=? WHERE id=?").run(now(), job.id);
       const generated = await generatePanelImage(job.provider_mode, ctx, panel.description);
@@ -69,7 +70,7 @@ async function processJob(db: Db, job: any) {
     db.prepare("INSERT INTO pages VALUES(?,?,?,?,?,?,?,?,?)").run(randomUUID(), chapter.id, revision, pageNumber, output, JSON.stringify(layout), JSON.stringify(lettering), 0, now());
     updateProgress(db, job.id, pageNumber, totalPages);
   }
-  await checkpoint(db, job.id, "generate_artwork", { revision, pages: totalPages });
+  await checkpoint(db, job.id, "generate_artwork", { revision, pages: totalPages, provider: useMockArtwork ? "mock" : "openai" });
   await checkpoint(db, job.id, "letter_and_validate", { editableLettering: true, artworkUnchanged: true });
   if (!job.sample_only) {
     db.prepare("UPDATE chapters SET status='completed' WHERE id=?").run(chapter.id);

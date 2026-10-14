@@ -17,6 +17,7 @@ export interface Job {
   id: string; seriesId: string; chapterId: string; status: JobStatus; stage: string;
   completedPages: number; totalPages: number; mode: "faithful" | "condensed";
   pageMin: number; pageMax: number; sampleOnly: boolean; providerMode: "mock" | "openai" | "hybrid";
+  imageProviderMode: "mock" | "openai";
   error?: string; createdAt: string; updatedAt: string;
 }
 export interface Page {

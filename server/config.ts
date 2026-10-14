@@ -5,6 +5,7 @@ export const config = {
   apiPort: Number(process.env.API_PORT ?? 4317),
   dataDir: path.resolve(process.env.DATA_DIR ?? "./data"),
   providerMode: process.env.PROVIDER_MODE === "hybrid" ? "hybrid" as const : process.env.PROVIDER_MODE === "openai" ? "openai" as const : "mock" as const,
+  imageProviderMode: process.env.IMAGE_PROVIDER_MODE === "openai" ? "openai" as const : "mock" as const,
   allowPaidCalls: process.env.ALLOW_PAID_PROVIDER_CALLS === "true",
   maxUploadBytes: Number(process.env.MAX_UPLOAD_MB ?? 12) * 1024 * 1024,
   maxPages: Number(process.env.MAX_PAGES_PER_CHAPTER ?? 24),

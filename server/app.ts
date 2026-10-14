@@ -26,8 +26,8 @@ export function createApp(db: Db) {
   app.use("/files/generated", express.static(path.join(config.dataDir, "generated"), { fallthrough: false, index: false }));
   app.use("/files/references", express.static(path.join(config.dataDir, "references"), { fallthrough: false, index: false }));
 
-  app.get("/api/health", (_req, res) => res.json({ ok: true, providerMode: config.providerMode, paidCallsEnabled: config.allowPaidCalls, database: "sqlite", workerRequired: true }));
-  app.get("/api/settings", (_req, res) => res.json({ providerMode: config.providerMode, paidCallsEnabled: config.allowPaidCalls, maxPages: config.maxPages, maxJobSpendUsd: config.maxJobSpendUsd, apiKeyConfigured: Boolean(process.env.OPENAI_API_KEY), textModel: config.openAITextModel, imageModel: config.openAIImageModel, chatgpt: getChatGPTStatus(db), dataDir: config.dataDir, privacy: "Hybrid mode sends chapter text and selected reference images through your authorized ChatGPT plan. Image generation is unsupported by plan usage and requires a separately authorized API-key call. Mock mode stays local." }));
+  app.get("/api/health", (_req, res) => res.json({ ok: true, providerMode: config.providerMode, imageProviderMode: config.imageProviderMode, paidCallsEnabled: config.allowPaidCalls, database: "sqlite", workerRequired: true }));
+  app.get("/api/settings", (_req, res) => res.json({ providerMode: config.providerMode, imageProviderMode: config.imageProviderMode, paidCallsEnabled: config.allowPaidCalls, maxPages: config.maxPages, maxJobSpendUsd: config.maxJobSpendUsd, apiKeyConfigured: Boolean(process.env.OPENAI_API_KEY), textModel: config.openAITextModel, imageModel: config.openAIImageModel, chatgpt: getChatGPTStatus(db), dataDir: config.dataDir, privacy: config.providerMode === "hybrid" && config.imageProviderMode === "mock" ? "Hybrid test mode sends chapter text and selected reference images through your authorized ChatGPT plan while rendering clearly labeled placeholder artwork locally." : "Image generation through OpenAI requires separately authorized API-key billing. Mock artwork stays local." }));
   app.get("/api/auth/chatgpt/start", (_req, res) => res.redirect(302, startChatGPTAuthorization(db)));
   app.get("/api/auth/chatgpt/callback", async (req, res) => {
     try {
@@ -163,7 +163,7 @@ export function createApp(db: Db) {
     if (chapter.status === "completed" && !req.body.regenerate) return res.json({ state: "completed", chapterId: chapter.id });
     const id = randomUUID(); const total = opts.sampleOnly ? 1 : Math.min(opts.pageMin, config.maxPages);
     try {
-      db.prepare("INSERT INTO jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id, chapter.series_id, chapter.id, "queued", "queued", 0, total, opts.mode, opts.pageMin, Math.min(opts.pageMax, config.maxPages), opts.sampleOnly ? 1 : 0, config.providerMode, opts.paidCallsAuthorized ? 1 : 0, 0, null, null, null, now(), now());
+      db.prepare("INSERT INTO jobs(id,series_id,chapter_id,status,stage,completed_pages,total_pages,mode,page_min,page_max,sample_only,provider_mode,image_provider_mode,paid_calls_authorized,cancel_requested,error,provider_request_id,actual_usage_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id, chapter.series_id, chapter.id, "queued", "queued", 0, total, opts.mode, opts.pageMin, Math.min(opts.pageMax, config.maxPages), opts.sampleOnly ? 1 : 0, config.providerMode, config.imageProviderMode, opts.paidCallsAuthorized ? 1 : 0, 0, null, null, null, now(), now());
       db.prepare("UPDATE chapters SET status='generating' WHERE id=? AND status!='completed'").run(chapter.id);
       res.status(201).json(mapJob(db.prepare("SELECT * FROM jobs WHERE id=?").get(id) as any));
     } catch {
@@ -180,7 +180,7 @@ export function createApp(db: Db) {
     if (active) return res.json(mapJob(active));
     const id = randomUUID();
     db.transaction(() => {
-      db.prepare("INSERT INTO jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id, old.series_id, old.chapter_id, "queued", "queued", 0, old.total_pages, old.mode, old.page_min, old.page_max, old.sample_only, old.provider_mode, old.paid_calls_authorized, 0, null, null, null, now(), now());
+      db.prepare("INSERT INTO jobs(id,series_id,chapter_id,status,stage,completed_pages,total_pages,mode,page_min,page_max,sample_only,provider_mode,image_provider_mode,paid_calls_authorized,cancel_requested,error,provider_request_id,actual_usage_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id, old.series_id, old.chapter_id, "queued", "queued", 0, old.total_pages, old.mode, old.page_min, old.page_max, old.sample_only, old.provider_mode, old.image_provider_mode ?? (old.provider_mode === "mock" ? "mock" : "openai"), old.paid_calls_authorized, 0, null, null, null, now(), now());
       db.prepare("INSERT INTO stage_outputs SELECT ?,stage,output_json,completed_at FROM stage_outputs WHERE job_id=?").run(id, old.id);
     })();
     res.status(201).json(mapJob(db.prepare("SELECT * FROM jobs WHERE id=?").get(id) as any));
@@ -210,7 +210,7 @@ export function createApp(db: Db) {
 
 function mapChapter(r: any) { return { id: r.id, seriesId: r.series_id, identifier: r.identifier, title: r.title, sortOrder: r.sort_order, sourceText: r.source_text, sourceKind: r.source_kind, sourceMetadata: json(r.source_metadata_json, {}), mappingNote: r.mapping_note, status: r.status, pageCount: Number(r.page_count ?? 0) }; }
 function mapReference(r: any) { return { id: r.id, seriesId: r.series_id, filename: r.filename, filePath: `/files/references/${r.series_id}/${path.basename(r.file_path)}`, mimeType: r.mime_type, tags: json(r.tags_json, []), sourceUrl: r.source_url, chapterLabel: r.chapter_label, maxReferenceChapter: r.max_reference_chapter }; }
-function mapJob(r: any) { return { id: r.id, seriesId: r.series_id, chapterId: r.chapter_id, status: r.status, stage: r.stage, completedPages: r.completed_pages, totalPages: r.total_pages, mode: r.mode, pageMin: r.page_min, pageMax: r.page_max, sampleOnly: Boolean(r.sample_only), providerMode: r.provider_mode, error: r.error, createdAt: r.created_at, updatedAt: r.updated_at }; }
+function mapJob(r: any) { return { id: r.id, seriesId: r.series_id, chapterId: r.chapter_id, status: r.status, stage: r.stage, completedPages: r.completed_pages, totalPages: r.total_pages, mode: r.mode, pageMin: r.page_min, pageMax: r.page_max, sampleOnly: Boolean(r.sample_only), providerMode: r.provider_mode, imageProviderMode: r.image_provider_mode ?? (r.provider_mode === "mock" ? "mock" : "openai"), error: r.error, createdAt: r.created_at, updatedAt: r.updated_at }; }
 function mapPage(r: any) { const parts = path.normalize(r.image_path).split(path.sep); const i = parts.lastIndexOf("generated"); return { id: r.id, chapterId: r.chapter_id, revision: r.revision, pageNumber: r.page_number, imagePath: `/files/${parts.slice(i).join("/")}`, layout: json(r.layout_json, []), lettering: json(r.lettering_json, []), approved: Boolean(r.approved) }; }
 function detectChapters(text: string) {
   const header = /^(?:chapter|ch\.?|book|part)\s+([^\r\n:—-]+)(?:\s*[:—-]\s*(.*))?$/gim;

@@ -37,7 +37,7 @@ export function createDb(filename = path.join(config.dataDir, "novel-to-manga.sq
       chapter_id TEXT NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
       status TEXT NOT NULL, stage TEXT NOT NULL, completed_pages INTEGER NOT NULL DEFAULT 0,
       total_pages INTEGER NOT NULL, mode TEXT NOT NULL, page_min INTEGER NOT NULL, page_max INTEGER NOT NULL,
-      sample_only INTEGER NOT NULL, provider_mode TEXT NOT NULL, paid_calls_authorized INTEGER NOT NULL DEFAULT 0,
+      sample_only INTEGER NOT NULL, provider_mode TEXT NOT NULL, image_provider_mode TEXT NOT NULL DEFAULT 'mock', paid_calls_authorized INTEGER NOT NULL DEFAULT 0,
       cancel_requested INTEGER NOT NULL DEFAULT 0, error TEXT, provider_request_id TEXT,
       actual_usage_json TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     );
@@ -81,6 +81,8 @@ export function createDb(filename = path.join(config.dataDir, "novel-to-manga.sq
   `);
   const chapterColumns = db.prepare("PRAGMA table_info(chapters)").all() as Array<{ name: string }>;
   if (!chapterColumns.some(c => c.name === "source_metadata_json")) db.exec("ALTER TABLE chapters ADD COLUMN source_metadata_json TEXT NOT NULL DEFAULT '{}'");
+  const jobColumns = db.prepare("PRAGMA table_info(jobs)").all() as Array<{ name: string }>;
+  if (!jobColumns.some(c => c.name === "image_provider_mode")) db.exec("ALTER TABLE jobs ADD COLUMN image_provider_mode TEXT NOT NULL DEFAULT 'mock'");
   // A crashed worker leaves running jobs recoverable at startup.
   db.prepare("UPDATE jobs SET status='queued', stage=CASE WHEN stage='provider_request' THEN 'reconcile' ELSE stage END, updated_at=? WHERE status='running'").run(new Date().toISOString());
   return db;

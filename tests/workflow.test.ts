@@ -17,6 +17,7 @@ beforeEach(async () => {
   fs.mkdirSync(temp, { recursive: true });
   config.dataDir = temp;
   config.providerMode = "mock";
+  config.imageProviderMode = "mock";
   db = createDb(path.join(temp, "test.sqlite"));
   server = createApp(db).listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));
@@ -53,6 +54,7 @@ describe("persisted mock workflow", () => {
     const payload = { chapterId: chapterIds[0], mode: "faithful", pageMin: 2, pageMax: 4, sampleOnly: true, paidCallsAuthorized: false };
     const results = await Promise.all(Array.from({ length: 6 }, () => request("/api/jobs", payload)));
     expect(new Set(results.map(r => r.data.id)).size).toBe(1);
+    expect(results[0].data.imageProviderMode).toBe("mock");
     expect((db.prepare("SELECT COUNT(*) n FROM jobs").get() as any).n).toBe(1);
   });
 

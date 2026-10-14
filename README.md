@@ -59,7 +59,9 @@ ALLOW_PAID_PROVIDER_CALLS=true
 MAX_JOB_SPEND_USD=5
 ```
 
-For hybrid mode, set `PROVIDER_MODE=hybrid`, restart the app, then open Settings and choose **Continue with ChatGPT**. Adaptation and reference analysis use eligible ChatGPT plan usage; artwork still uses the API key because image generation is unsupported in the ChatGPT-plan OAuth preview. The app stores OAuth credentials only in the ignored local SQLite data directory and never sends them to the browser.
+For hybrid mode, set `PROVIDER_MODE=hybrid`, restart the app, then open Settings and choose **Continue with ChatGPT**. Adaptation and reference analysis use eligible ChatGPT plan usage. Because image generation is unsupported in the ChatGPT-plan OAuth preview, choose local placeholder artwork or separately billed API artwork with `IMAGE_PROVIDER_MODE`. The app stores OAuth credentials only in the ignored local SQLite data directory and never sends them to the browser.
+
+For a zero-cost hybrid test, also set `IMAGE_PROVIDER_MODE=mock`. This uses the connected ChatGPT Plus/Pro plan for adaptation and reference analysis while rendering clearly labeled placeholder artwork locally. Set `IMAGE_PROVIDER_MODE=openai` only when you intend to authorize separately billed API image generation.
 
 Real image calls still require explicit authorization on each job. The Generate screen includes an **Authorize paid artwork for this job** checkbox, which is off by default; environment values alone therefore cannot spend money. Keys stay server-side and are never returned by the settings endpoint. API usage is billed separately from ChatGPT subscriptions.
 
