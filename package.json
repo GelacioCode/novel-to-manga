@@ -1,0 +1,45 @@
+{
+  "name": "novel-to-manga",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,worker,web -c blue,magenta,green \"tsx watch server/index.ts\" \"tsx watch server/worker.ts\" \"vite\"",
+    "dev:api": "tsx watch server/index.ts",
+    "dev:worker": "tsx watch server/worker.ts",
+    "build": "tsc --noEmit && vite build",
+    "start": "concurrently -k -n api,worker,web -c blue,magenta,green \"tsx server/index.ts\" \"tsx server/worker.ts\" \"vite --host 127.0.0.1\"",
+    "worker": "tsx server/worker.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "tsc --noEmit && vitest run"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "better-sqlite3": "latest",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "file-type": "latest",
+    "multer": "latest",
+    "openai": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "latest",
+    "@types/cors": "latest",
+    "@types/express": "latest",
+    "@types/multer": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "concurrently": "latest",
+    "jsdom": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest"
+  }
+}
