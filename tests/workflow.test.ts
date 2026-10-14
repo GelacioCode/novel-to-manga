@@ -9,6 +9,7 @@ import { createApp } from "../server/app";
 import { config } from "../server/config";
 import { processNextJob } from "../server/worker-core";
 import { getChatGPTStatus, startChatGPTAuthorization } from "../server/chatgpt-auth";
+import { fitLetteringToPage } from "../shared/lettering";
 
 let db: Db; let server: Server; let base: string; let temp: string;
 
@@ -39,6 +40,10 @@ async function seed(twoChapters = false) {
 }
 
 describe("persisted mock workflow", () => {
+  it("keeps long lettering sets inside the page", () => {
+    const fitted = fitLetteringToPage(Array.from({ length: 9 }, (_, i) => ({ id: String(i), x: 8, y: 8 + i * 18, width: 36, height: 14 })));
+    expect(fitted.every(item => item.x >= 0 && item.y >= 0 && item.x + item.width <= 100 && item.y + item.height <= 96)).toBe(true);
+  });
   it("creates a PKCE ChatGPT-plan authorization without exposing credentials", () => {
     const authorization = new URL(startChatGPTAuthorization(db));
     expect(authorization.origin).toBe("https://auth.openai.com");

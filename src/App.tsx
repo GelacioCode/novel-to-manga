@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import type { Chapter, Guide, Job, Lettering, Page, ReferenceImage, Series } from "./types";
+import { fitLetteringToPage } from "../shared/lettering";
 
 type SeriesDetail = { series: any; chapters: Chapter[]; references: ReferenceImage[]; guide?: Guide };
 type Tab = "chapters" | "references" | "generate" | "reader" | "settings";
@@ -109,7 +110,7 @@ function Reader({seriesId,chapters,report,onImport}:{seriesId:string;chapters:Ch
 }
 
 function MangaPage({page,zoom,report}:{page:Page;zoom:number;report:(s:string,e?:boolean)=>void}){
-  const [lettering,setLettering]=useState<Lettering[]>(page.lettering); const [editing,setEditing]=useState(false);
+  const [lettering,setLettering]=useState<Lettering[]>(()=>fitLetteringToPage(page.lettering)); const [editing,setEditing]=useState(false);
   const save=async()=>{try{await api(`/api/pages/${page.id}/lettering`,{method:"PUT",body:JSON.stringify({lettering})});setEditing(false);report("Lettering saved without regenerating artwork.")}catch(e){report((e as Error).message,true)}};
   return <article className="manga-page" style={{width:`${zoom}%`}}><div className="page-canvas"><img src={page.imagePath}/>{lettering.map((l,i)=><div className={`balloon ${l.kind}`} style={{left:`${l.x}%`,top:`${l.y}%`,width:`${l.width}%`,minHeight:`${l.height}%`}} key={l.id}>{editing?<textarea value={l.text} onChange={e=>setLettering(v=>v.map((x,n)=>n===i?{...x,text:e.target.value}:x))}/>:<><small>{l.speaker}</small>{l.text}</>}</div>)}</div><div className="page-meta"><span>Page {page.pageNumber} · revision {page.revision}</span>{editing?<button onClick={()=>void save()}>Save text</button>:<button onClick={()=>setEditing(true)}>Edit lettering</button>}</div></article>;
 }

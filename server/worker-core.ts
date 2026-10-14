@@ -6,6 +6,7 @@ import { config } from "./config";
 import { createAdaptation, generatePanelImage, type ProviderContext } from "./providers";
 import { mockSvg } from "./mock";
 import { adaptationSchema, type Adaptation } from "./schemas";
+import { fitLetteringToPage } from "../shared/lettering";
 
 const stages = ["validate", "extract_and_script", "plan_pages", "generate_artwork", "letter_and_validate", "save_chapter"] as const;
 
@@ -66,7 +67,7 @@ async function processJob(db: Db, job: any) {
     }
     const panelId = randomUUID();
     const layout = [{ id: panelId, x: 4, y: 3, width: 92, height: 94, sourcePassageIds: panel.sourcePassageIds }];
-    const lettering = panel.dialogue.map((d, n) => ({ id: randomUUID(), panelId, kind: "dialogue", speaker: d.speaker, text: d.text, x: n % 2 ? 55 : 8, y: 8 + n * 18, width: 36, height: 14 }));
+    const lettering = fitLetteringToPage(panel.dialogue.map(d => ({ id: randomUUID(), panelId, kind: "dialogue", speaker: d.speaker, text: d.text, x: 0, y: 0, width: 0, height: 0 })), true);
     db.prepare("INSERT INTO pages VALUES(?,?,?,?,?,?,?,?,?)").run(randomUUID(), chapter.id, revision, pageNumber, output, JSON.stringify(layout), JSON.stringify(lettering), 0, now());
     updateProgress(db, job.id, pageNumber, totalPages);
   }
