@@ -6,7 +6,7 @@ export interface Series {
 }
 export interface Chapter {
   id: string; seriesId: string; identifier: string; title: string; sortOrder: number;
-  sourceText: string; sourceKind: string; sourceMetadata?: Record<string,string>; mappingNote: string; status: "imported" | "generating" | "completed";
+  sourceText: string; sourceKind: string; sourceMetadata?: Record<string,string>; mappingNote: string; status: "imported" | "generating" | "completed"; pageCount: number;
 }
 export interface ReferenceImage {
   id: string; seriesId: string; filename: string; filePath: string; mimeType: string;

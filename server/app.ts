@@ -53,7 +53,7 @@ export function createApp(db: Db) {
   app.get("/api/series/:id", (req, res) => {
     const series = db.prepare("SELECT * FROM series WHERE id=?").get(req.params.id);
     if (!series) return res.status(404).json({ error: "Series not found." });
-    const chapters = db.prepare("SELECT * FROM chapters WHERE series_id=? ORDER BY sort_order").all(req.params.id).map(mapChapter);
+    const chapters = db.prepare("SELECT c.*, (SELECT COUNT(*) FROM pages p WHERE p.chapter_id=c.id) page_count FROM chapters c WHERE c.series_id=? ORDER BY c.sort_order").all(req.params.id).map(mapChapter);
     const references = db.prepare("SELECT * FROM reference_images WHERE series_id=? ORDER BY created_at").all(req.params.id).map(mapReference);
     const guide = db.prepare("SELECT * FROM visual_guides WHERE series_id=? ORDER BY version DESC LIMIT 1").get(req.params.id) as any;
     res.json({ series, chapters, references, guide: guide && { id: guide.id, content: guide.content, approved: Boolean(guide.approved), version: guide.version } });
@@ -208,7 +208,7 @@ export function createApp(db: Db) {
   return app;
 }
 
-function mapChapter(r: any) { return { id: r.id, seriesId: r.series_id, identifier: r.identifier, title: r.title, sortOrder: r.sort_order, sourceText: r.source_text, sourceKind: r.source_kind, sourceMetadata: json(r.source_metadata_json, {}), mappingNote: r.mapping_note, status: r.status }; }
+function mapChapter(r: any) { return { id: r.id, seriesId: r.series_id, identifier: r.identifier, title: r.title, sortOrder: r.sort_order, sourceText: r.source_text, sourceKind: r.source_kind, sourceMetadata: json(r.source_metadata_json, {}), mappingNote: r.mapping_note, status: r.status, pageCount: Number(r.page_count ?? 0) }; }
 function mapReference(r: any) { return { id: r.id, seriesId: r.series_id, filename: r.filename, filePath: `/files/references/${r.series_id}/${path.basename(r.file_path)}`, mimeType: r.mime_type, tags: json(r.tags_json, []), sourceUrl: r.source_url, chapterLabel: r.chapter_label, maxReferenceChapter: r.max_reference_chapter }; }
 function mapJob(r: any) { return { id: r.id, seriesId: r.series_id, chapterId: r.chapter_id, status: r.status, stage: r.stage, completedPages: r.completed_pages, totalPages: r.total_pages, mode: r.mode, pageMin: r.page_min, pageMax: r.page_max, sampleOnly: Boolean(r.sample_only), providerMode: r.provider_mode, error: r.error, createdAt: r.created_at, updatedAt: r.updated_at }; }
 function mapPage(r: any) { const parts = path.normalize(r.image_path).split(path.sep); const i = parts.lastIndexOf("generated"); return { id: r.id, chapterId: r.chapter_id, revision: r.revision, pageNumber: r.page_number, imagePath: `/files/${parts.slice(i).join("/")}`, layout: json(r.layout_json, []), lettering: json(r.lettering_json, []), approved: Boolean(r.approved) }; }

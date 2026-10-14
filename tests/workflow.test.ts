@@ -91,6 +91,8 @@ describe("persisted mock workflow", () => {
     const { chapterIds } = await seed();
     await request("/api/jobs", { chapterId: chapterIds[0], mode: "faithful", pageMin: 3, pageMax: 4, sampleOnly: true, paidCallsAuthorized: false });
     await processNextJob(db);
+    const detail = (await request(`/api/series/${(db.prepare("SELECT series_id FROM chapters WHERE id=?").get(chapterIds[0]) as any).series_id}`, undefined, "GET")).data;
+    expect(detail.chapters[0].status).toBe("generating"); expect(detail.chapters[0].pageCount).toBe(1);
     const sample = (await request(`/api/chapters/${chapterIds[0]}/pages`, undefined, "GET")).data.pages[0];
     const image = path.join(temp, "generated", chapterIds[0], "1", "page-1.svg"); const before = fs.statSync(image).mtimeMs;
     await request(`/api/pages/${sample.id}/approve`, {});
